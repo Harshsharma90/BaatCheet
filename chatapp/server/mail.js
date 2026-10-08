@@ -1,23 +1,25 @@
-const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require('@getbrevo/brevo');
 
-const host = process.env.SMTP_HOST;
-const user = process.env.SMTP_USER;
-const pass = (process.env.SMTP_PASS || '').replace(/\s/g, ''); // Google shows the code with spaces
-const port = Number(process.env.SMTP_PORT) || 587;
+const apiKey = process.env.BREVO_API_KEY;
+const fromEmail = process.env.MAIL_FROM_EMAIL;
+const fromName = process.env.MAIL_FROM_NAME || 'Chat App';
 
-const transporter = host && user && pass
-  ? nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } })
-  : null;
-
-if (transporter) {
-  transporter.verify()
-    .then(() => console.log('Email ready: sending from ' + user))
-    .catch(e => console.error('EMAIL SETUP PROBLEM:', e.message));
+let client = null;
+if (apiKey) {
+  client = new SibApiV3Sdk.TransactionalEmailsApi();
+  client.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+  console.log('Email ready: sending via Brevo from ' + fromEmail);
 } else {
-  console.log('No email settings in .env: emails will be printed here instead of sent.');
+  console.log('No BREVO_API_KEY in .env: emails will be printed here instead of sent.');
 }
 
 module.exports = async (to, subject, text, html) => {
-  if (!transporter) return console.log(`\n[DEV MAIL] To: ${to}\nSubject: ${subject}\n${text}\n`);
-  await transporter.sendMail({ from: process.env.MAIL_FROM || user, to, subject, text, html });
+  if (!client) return console.log(`\n[DEV MAIL] To: ${to}\nSubject: ${subject}\n${text}\n`);
+  const email = new SibApiV3Sdk.SendSmtpEmail();
+  email.sender = { email: fromEmail, name: fromName };
+  email.to = [{ email: to }];
+  email.subject = subject;
+  email.textContent = text;
+  email.htmlContent = html || `<p>${text.replace(/\n/g, '<br>')}</p>`;
+  await client.sendTransacEmail(email);
 };
