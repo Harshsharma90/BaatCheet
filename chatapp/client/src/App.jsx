@@ -19,6 +19,8 @@ const TEXT = {
   forgot: ['Forgot password?', "Enter your email and we'll send you a reset link"],
   reset: ['Set a new password', 'Choose a password you will remember'],
 };
+const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PASSWORD_HINT = 'At least 8 characters, with one letter, one number and one special character.';
 const BTN = { login: 'Log in', signup: 'Create account', forgot: 'Send reset link', reset: 'Update password' };
 
 function Field({ icon, password, ...props }) {
@@ -71,6 +73,10 @@ function Auth({ onAuth }) {
     e.preventDefault();
     setErr('');
     setMsg('');
+       if ((mode === 'signup' || mode === 'reset') && !PASSWORD_RULE.test(f.password)) {
+      setErr(PASSWORD_HINT);
+      return;
+    }
     if ((mode === 'signup' || mode === 'reset') && f.password !== f.confirm) {
       setErr('Passwords do not match');
       return;
@@ -90,8 +96,12 @@ function Auth({ onAuth }) {
         go('login');
         setMsg('Password updated. You can log in now.');
       }
-    } catch (e2) {
-      setErr(e2.message);
+       } catch (e2) {
+      if (mode === 'signup' && /already registered/i.test(e2.message)) {
+        alert('This email is already registered. Please log in instead.');
+      } else {
+        setErr(e2.message);
+      }
     }
     setBusy(false);
   }
@@ -126,8 +136,11 @@ function Auth({ onAuth }) {
           {mode !== 'reset' && (
             <Field icon={I.mail} type="email" placeholder="Email address" value={f.email} onChange={set('email')} required />
           )}
-          {mode !== 'forgot' && (
-            <Field icon={I.lock} password placeholder={mode === 'reset' ? 'New password' : 'Password'} value={f.password} onChange={set('password')} required minLength={6} />
+                   {mode !== 'forgot' && (
+            <Field icon={I.lock} password placeholder={mode === 'reset' ? 'New password' : 'Password'} value={f.password} onChange={set('password')} required minLength={8} />
+          )}
+          {(mode === 'signup' || mode === 'reset') && (
+            <p style={{ margin: '-8px 0 0', fontSize: 12, color: '#888' }}>{PASSWORD_HINT}</p>
           )}
           {(mode === 'signup' || mode === 'reset') && (
             <Field icon={I.lock} password placeholder="Confirm password" value={f.confirm} onChange={set('confirm')} required minLength={6} />

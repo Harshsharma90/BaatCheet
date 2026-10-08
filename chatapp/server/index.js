@@ -68,8 +68,9 @@ const upload = multer({
 // ---------- Auth ----------
 app.post('/api/auth/signup', wrap(async (req, res) => {
   const { name, email, password } = req.body;
-  if (!name?.trim() || !validEmail(email) || (password || '').length < 6)
-    return res.status(400).json({ error: 'Name, valid email and a 6+ character password are required' });
+   const strongPassword = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  if (!name?.trim() || !validEmail(email) || !strongPassword.test(password || ''))
+    return res.status(400).json({ error: 'Password needs 8+ characters, with a letter, a number and a special character' });
   const e = email.toLowerCase().trim();
   const exists = await pool.query('SELECT 1 FROM users WHERE email=$1', [e]);
   if (exists.rowCount) return res.status(409).json({ error: 'Email already registered' });
@@ -110,8 +111,9 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
   const { token, password } = req.body;
   const r = await pool.query('SELECT * FROM reset_tokens WHERE token_hash=$1', [sha(token || '')]);
   const row = r.rows[0];
-  if (!row || Number(row.expires_at) < Date.now() || (password || '').length < 6)
-    return res.status(400).json({ error: 'Invalid or expired link, or password too short' });
+  const strongPassword = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  if (!row || Number(row.expires_at) < Date.now() || !strongPassword.test(password || ''))
+    return res.status(400).json({ error: 'Invalid or expired link, or your new password does not meet the requirements' });
   const hash = await bcrypt.hash(password, 10);
   await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, row.user_id]);
   await pool.query('DELETE FROM reset_tokens WHERE user_id=$1', [row.user_id]);
